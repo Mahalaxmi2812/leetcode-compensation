@@ -99,9 +99,9 @@ def parsed_posts(skip: int, first: int) -> Iterator[LeetCodePost]:
 
 
 def get_latest_posts(
-    comps_path: str, start_date: datetime, till_date: datetime
+    comps_path: str, start_date: datetime, till_date: datetime, start_skip: int = 0
 ) -> None:
-    skip, first = 0, 50
+    skip, first = start_skip, 50
     has_crossed_till_date = False
     fetched_posts, skips_due_to_lag = 0, 0
 
@@ -152,6 +152,12 @@ if __name__ == "__main__":
         default="",
         help="Fetch posts till this date (YYYY/MM/DD).",
     )
+    parser.add_argument(
+        "--skip",
+        type=int,
+        default=0,
+        help="Number of posts to skip from the beginning.",
+    )
     args = parser.parse_args()
 
     if not args.till_date:
@@ -159,10 +165,10 @@ if __name__ == "__main__":
     else:
         till_date = datetime.strptime(args.till_date, "%Y/%m/%d")
     
-    till_date = datetime(1970, 1, 1)
+
 
     print(f"Fetching posts till {till_date}...")
 
     start_date = datetime.now() - timedelta(days=config["app"]["lag_days"])
-    get_latest_posts(args.comps_path, start_date, till_date)
+    get_latest_posts(args.comps_path, start_date, till_date, start_skip=args.skip)
     sort_and_truncate(args.comps_path, truncate=False)
