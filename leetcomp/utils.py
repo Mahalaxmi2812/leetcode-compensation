@@ -1,3 +1,4 @@
+import google.generativeai as genai
 import json
 import os
 import random
@@ -57,6 +58,40 @@ def vllm_predict(prompt: str) -> str:
     )
     return str(response.json()["choices"][0]["text"])
 
+def gemini_predict(prompt: str) -> str:
+    """
+    Sends a prompt to the Google Gemini API and returns the response.
+    """
+    try:
+        # Configure the API key from environment variables
+        genai.configure(api_key=os.environ['GOOGLE_API_KEY'])
+        
+        # Use the latest Gemini 1.5 Pro model
+        model = genai.GenerativeModel(config["llms"]["gemini_model"])
+        
+        # Set safety settings to be less restrictive for this specific use case
+        safety_settings = {
+            'HARM_CATEGORY_HARASSMENT': 'BLOCK_NONE',
+            'HARM_CATEGORY_HATE_SPEECH': 'BLOCK_NONE',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT': 'BLOCK_NONE',
+            'HARM_CATEGORY_DANGEROUS_CONTENT': 'BLOCK_NONE',
+        }
+
+        response = model.generate_content(prompt, safety_settings=safety_settings)
+        
+        # The API can sometimes return an empty response if the prompt is blocked,
+        # so we check for that.
+        if not response.parts:
+            print(" ~ Gemini API returned a blocked response. Returning empty string.")
+            return ""
+
+        time.sleep(60 / config["llms"]["gemini_req_per_min"])
+
+        return response.text
+
+    except Exception as e:
+        print(f"An error occurred with the Gemini API: {e}")
+        return "" # Return empty string on error to prevent crashing
 
 def get_model_predict(inf_engine: str) -> Callable[[str], str]:
     match inf_engine.lower():
@@ -66,6 +101,8 @@ def get_model_predict(inf_engine: str) -> Callable[[str], str]:
             return openrouter_predict
         case "vllm":
             return vllm_predict
+        case "gemini":
+            return gemini_predict
         case _:
             raise ValueError("Invalid inference engine")
 

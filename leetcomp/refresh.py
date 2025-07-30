@@ -55,6 +55,10 @@ def post_content(post_id: int) -> str:
         raise FetchContentException(
             f"Invalid response data for post_id={post_id}"
         )
+    
+    if not data or not data.get("topic"):
+        print(f" ~ Skipping post_id={post_id}; content is null or missing (likely deleted).")
+        return ""
 
     return str(data["topic"]["post"]["content"])
 
@@ -154,9 +158,11 @@ if __name__ == "__main__":
         till_date = latest_parsed_date(args.comps_path)
     else:
         till_date = datetime.strptime(args.till_date, "%Y/%m/%d")
+    
+    till_date = datetime(1970, 1, 1)
 
     print(f"Fetching posts till {till_date}...")
 
     start_date = datetime.now() - timedelta(days=config["app"]["lag_days"])
     get_latest_posts(args.comps_path, start_date, till_date)
-    sort_and_truncate(args.comps_path, truncate=True)
+    sort_and_truncate(args.comps_path, truncate=False)
