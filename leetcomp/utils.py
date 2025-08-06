@@ -64,7 +64,7 @@ def gemini_predict(prompt: str) -> str:
     """
     try:
         # Configure the API key from environment variables
-        genai.configure(api_key=os.environ['GOOGLE_API_KEY'])
+        genai.configure(api_key=os.environ['GEMINI_API_KEY'])
         
         # Use the latest Gemini 1.5 Pro model
         model = genai.GenerativeModel(config["llms"]["gemini_model"])

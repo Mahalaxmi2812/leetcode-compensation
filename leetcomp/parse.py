@@ -32,9 +32,9 @@ def post_should_be_parsed(post: dict[Any, Any]) -> bool:
     if "title" not in post:
         print(f" x skipping {post['id']}; no title")
         return False
-    if "|" not in post["title"]:
-        print(f" x skipping {post['id']}; | not in title")
-        return False
+    # if "|" not in post["title"]:
+    #     print(f" x skipping {post['id']}; | not in title")
+    #     return False
     if "vote_count" not in post:
         print(f" x skipping {post['id']}; no vote_count")
         return False
@@ -100,7 +100,7 @@ def parsed_content_is_valid(
             # offers as amounts are per month, need a modified prompt for these
             assert "intern" not in item["role"].lower(), "intern in role"
         except (KeyError, AssertionError) as e:
-            print(f" x skipping {post_id}; invalid content: {str(e)}")
+            print(f" x skipping {post_id}; invalid content: {str(e)}; item: {item}")
             return False
 
     return True  # Parsed content is valid if no assertions fail
@@ -146,23 +146,31 @@ def parse_posts(
     till_date: datetime | None = None,
 ) -> None:
     n_skips = 0
+    processed_skips = 0
+    invalid_content_skips = 0
+    c = 0
+
     parsed_ids = parsed_ids or set()
 
     for i, post in enumerate(comps_posts_iter(in_comps_path), start=1):
-        if i % 20 == 0:
-            print(f"Processed {i} posts; {n_skips} skips")
+        c += 1
+        if i % 30 == 0:
+            print(f"Processed {i} posts; {n_skips} skips; {invalid_content_skips} invalid content skips; {processed_skips} processed skips")
 
         if post["id"] in parsed_ids or not post_should_be_parsed(post):
             n_skips += 1
+            processed_skips += 1
             continue
+    
 
-        if has_crossed_till_date(post["creation_date"], till_date):
-            break
+        # if has_crossed_till_date(post["creation_date"], till_date):
+        #     break
 
         input_text = f"{post['title']}\n---\n{post['content']}"
         prompt = PARSING_PROMPT.substitute(leetcode_post=input_text)
         response = llm_predict(prompt)
         parsed_content = parse_json_markdown(response)
+        parsed_ids.add(post["id"])
 
         if parsed_content_is_valid(post["id"], parsed_content):
             fill_yoe(parsed_content)
@@ -171,8 +179,10 @@ def parse_posts(
                 for parsed_post in parsed_posts:
                     f.write(json.dumps(parsed_post) + "\n")
         else:
+            print(f" x skipping {post}; invalid content")
+            invalid_content_skips += 1
             n_skips += 1
-
+    print(f"Processed {c} posts; {n_skips} skips; {invalid_content_skips} invalid content skips; {processed_skips} processed skips")
 
 def get_parsed_ids(out_comps_path: str) -> set[int]:
     with open(out_comps_path, "r") as f:
@@ -306,5 +316,5 @@ if __name__ == "__main__":
     )
 
     parse_posts(args.in_comps_path, args.out_comps_path, parsed_ids, till_date)
-    sort_and_truncate(args.out_comps_path, truncate=True)
+    sort_and_truncate(args.out_comps_path, truncate=False)
     jsonl_to_json(args.out_comps_path, args.json_path)
